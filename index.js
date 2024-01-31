@@ -1,8 +1,13 @@
 const canvas = document.querySelector("canvas");
 const ctx = canvas.getContext("2d");
 
-const width = (canvas.width = window.innerWidth);
-const height = (canvas.height = window.innerHeight);
+let width = (canvas.width = window.innerWidth);
+let height = (canvas.height = window.innerHeight);
+
+window.onresize = () => {
+	width = canvas.width = window.innerWidth;
+	height = canvas.height = window.innerHeight;
+};
 
 const ACTIONS = {
 	Move: 0,
@@ -13,12 +18,14 @@ const ACTIONS = {
 
 const actions = [];
 const undoActions = [];
+const selectedNodes = [];
 const gridLength = 20;
 
 let action = ACTIONS.Move;
 let canvasAction = () => {};
 let fromNode = null;
 let movingNode = null;
+let selectionZone = null;
 let mouseX = 0;
 let mouseY = 0;
 let grid = false;
@@ -35,9 +42,14 @@ class Node {
 		this.edges.push(new Edge(this, node));
 	}
 
-	draw(ctx, { radius = 30 }) {
-		ctx.fillStyle = "white";
-		ctx.strokeStyle = "black";
+	draw(ctx, selected, { radius = 30 }) {
+		if (selected) {
+			ctx.strokeStyle = "rgb(60, 161, 232)";
+			ctx.fillStyle = "rgb(225, 237, 245)";
+		} else {
+			ctx.strokeStyle = "black";
+			ctx.fillStyle = "white";
+		}
 
 		ctx.beginPath();
 
@@ -56,7 +68,12 @@ class Node {
 		ctx.fill();
 		ctx.stroke();
 
-		ctx.fillStyle = "black";
+		if (selected) {
+			ctx.fillStyle = "rgb(60, 161, 232)";
+		} else {
+			ctx.fillStyle = "black";
+		}
+
 		ctx.font = `${Math.round((radius * 2) / 3)}px Arial`;
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
@@ -184,10 +201,7 @@ class Graph {
 	getNode(x, y) {
 		return this.nodes.find(
 			(node) =>
-				x > node.x - this.nodeRadius &&
-				x < node.x + this.nodeRadius &&
-				y > node.y - this.nodeRadius &&
-				y < node.y + this.nodeRadius
+				Math.sqrt((node.x - x) ** 2 + (node.y - y) ** 2) <= this.nodeRadius
 		);
 	}
 
@@ -207,7 +221,7 @@ class Graph {
 		}
 	}
 
-	draw(ctx, width, height) {
+	draw(ctx, width, height, selectionZone) {
 		ctx.clearRect(0, 0, width, height);
 
 		canvasAction(this);
@@ -237,15 +251,30 @@ class Graph {
 		);
 
 		this.nodes.forEach((node) =>
-			node.draw(ctx, {
+			node.draw(ctx, selectedNodes.includes(node), {
 				radius: this.nodeRadius,
 			})
 		);
+
+		if (selectionZone) {
+			ctx.strokeStyle = "rgb(60, 161, 232)";
+			ctx.fillStyle = "rgba(60, 161, 232, 0.2)";
+
+			const zone = [
+				selectionZone.x,
+				selectionZone.y,
+				selectionZone.width,
+				selectionZone.height,
+			];
+
+			ctx.strokeRect(...zone);
+			ctx.fillRect(...zone);
+		}
 	}
 }
 
 const graph = new Graph({
-	oriented: true,
+	oriented: false,
 	useLetters: true,
 });
 
@@ -258,7 +287,7 @@ const switchGridButton = document.querySelector(".switch.grid");
 const undoButton = document.querySelector(".action.undo");
 const redoButton = document.querySelector(".action.redo");
 
-selectMove.addEventListener("click", (e) => {
+selectMove.onclick = (e) => {
 	e.stopPropagation();
 	action = ACTIONS.Move;
 
@@ -266,9 +295,9 @@ selectMove.addEventListener("click", (e) => {
 	makeNodeButton.classList.remove("active");
 	makeEdgeButton.classList.remove("active");
 	deleteNodeButton.classList.remove("active");
-});
+};
 
-makeNodeButton.addEventListener("click", (e) => {
+makeNodeButton.onclick = (e) => {
 	e.stopPropagation();
 	action = ACTIONS.AddNode;
 
@@ -276,9 +305,9 @@ makeNodeButton.addEventListener("click", (e) => {
 	makeNodeButton.classList.add("active");
 	makeEdgeButton.classList.remove("active");
 	deleteNodeButton.classList.remove("active");
-});
+};
 
-makeEdgeButton.addEventListener("click", (e) => {
+makeEdgeButton.onclick = (e) => {
 	e.stopPropagation();
 	action = ACTIONS.AddEdge;
 
@@ -286,9 +315,9 @@ makeEdgeButton.addEventListener("click", (e) => {
 	makeNodeButton.classList.remove("active");
 	makeEdgeButton.classList.add("active");
 	deleteNodeButton.classList.remove("active");
-});
+};
 
-deleteNodeButton.addEventListener("click", (e) => {
+deleteNodeButton.onclick = (e) => {
 	e.stopPropagation();
 	action = ACTIONS.Delete;
 
@@ -296,23 +325,28 @@ deleteNodeButton.addEventListener("click", (e) => {
 	makeNodeButton.classList.remove("active");
 	makeEdgeButton.classList.remove("active");
 	deleteNodeButton.classList.add("active");
-});
+};
 
-switchOrientationButton.addEventListener("click", (e) => {
+switchOrientationButton.onclick = (e) => {
 	e.stopPropagation();
 
 	graph.oriented = !graph.oriented;
 	switchOrientationButton.classList.toggle("active");
-});
+};
 
-switchGridButton.addEventListener("click", (e) => {
+switchGridButton.onclick = (e) => {
 	e.stopPropagation();
 
 	grid = !grid;
 	switchGridButton.classList.toggle("active");
-});
 
-undoButton.addEventListener("click", (e) => {
+	graph.nodes.forEach((node) => {
+		node.x = graph.adaptPos(node.x);
+		node.y = graph.adaptPos(node.y);
+	});
+};
+
+undoButton.onclick = (e) => {
 	e.stopPropagation();
 
 	const lastAction = actions.pop();
@@ -345,9 +379,9 @@ undoButton.addEventListener("click", (e) => {
 	}
 
 	undoActions.push(lastAction);
-});
+};
 
-redoButton.addEventListener("click", (e) => {
+redoButton.onclick = (e) => {
 	e.stopPropagation();
 
 	const lastAction = undoActions.pop();
@@ -377,9 +411,9 @@ redoButton.addEventListener("click", (e) => {
 	}
 
 	actions.push(lastAction);
-});
+};
 
-document.addEventListener("click", (e) => {
+document.onclick = (e) => {
 	switch (action) {
 		case ACTIONS.AddNode: {
 			const node = new Node(
@@ -408,14 +442,32 @@ document.addEventListener("click", (e) => {
 			break;
 		}
 	}
-});
+};
 
-document.addEventListener("mousedown", (e) => {
+document.onmousedown = (e) => {
 	switch (action) {
 		case ACTIONS.Move: {
 			movingNode = graph.getNode(e.clientX, e.clientY) ?? null;
 			mouseX = graph.adaptPos(e.clientX);
 			mouseY = graph.adaptPos(e.clientY);
+
+			if (movingNode) {
+				if (selectedNodes.includes(movingNode)) return;
+				if (e.shiftKey) {
+					selectedNodes.push(movingNode);
+				} else {
+					selectedNodes.length = 0;
+					selectedNodes.push(movingNode);
+				}
+			} else {
+				selectionZone = {
+					x: mouseX,
+					y: mouseY,
+					width: 0,
+					height: 0,
+				};
+			}
+
 			break;
 		}
 
@@ -424,14 +476,24 @@ document.addEventListener("mousedown", (e) => {
 			break;
 		}
 	}
-});
+};
 
-document.addEventListener("mousemove", (e) => {
+document.onmousemove = (e) => {
 	switch (action) {
 		case ACTIONS.Move: {
-			if (!movingNode) return;
-			movingNode.x = graph.adaptPos(e.clientX);
-			movingNode.y = graph.adaptPos(e.clientY);
+			if (movingNode) {
+				selectedNodes.forEach((node) => {
+					node.x = graph.adaptPos(node.x + e.clientX - mouseX);
+					node.y = graph.adaptPos(node.y + e.clientY - mouseY);
+				});
+
+				mouseX = graph.adaptPos(e.clientX);
+				mouseY = graph.adaptPos(e.clientY);
+			} else if (selectionZone) {
+				selectionZone.width = graph.adaptPos(e.clientX) - selectionZone.x;
+				selectionZone.height = graph.adaptPos(e.clientY) - selectionZone.y;
+			}
+
 			break;
 		}
 
@@ -476,26 +538,42 @@ document.addEventListener("mousemove", (e) => {
 			break;
 		}
 	}
-});
+};
 
-document.addEventListener("mouseup", (e) => {
+document.onmouseup = (e) => {
 	switch (action) {
 		case ACTIONS.Move: {
-			if (!movingNode) return;
+			if (movingNode) {
+				actions.push({
+					action: ACTIONS.Move,
+					node: movingNode,
+					fromX: mouseX,
+					fromY: mouseY,
+					toX: movingNode.x,
+					toY: movingNode.x,
+				});
 
-			actions.push({
-				action: ACTIONS.Move,
-				node: movingNode,
-				fromX: mouseX,
-				fromY: mouseY,
-				toX: graph.adaptPos(e.clientX),
-				toY: graph.adaptPos(e.clientY),
-			});
+				movingNode = null;
+				undoActions.length = 0;
+			} else {
+				const nodes = graph.nodes.filter(
+					(node) =>
+						node.x >= selectionZone.x &&
+						node.x <= selectionZone.x + selectionZone.width &&
+						node.y >= selectionZone.y &&
+						node.y <= selectionZone.y + selectionZone.height
+				);
 
-			movingNode.x = graph.adaptPos(e.clientX);
-			movingNode.y = graph.adaptPos(e.clientY);
-			movingNode = null;
-			undoActions.length = 0;
+				if (e.shiftKey) {
+					selectedNodes.push(...nodes);
+				} else {
+					selectedNodes.length = 0;
+					selectedNodes.push(...nodes);
+				}
+
+				selectionZone = null;
+			}
+
 			break;
 		}
 
@@ -517,11 +595,11 @@ document.addEventListener("mouseup", (e) => {
 			undoActions.length = 0;
 		}
 	}
-});
+};
 
 function animate() {
 	requestAnimationFrame(animate);
-	graph.draw(ctx, width, height);
+	graph.draw(ctx, width, height, selectionZone);
 }
 
 animate();
