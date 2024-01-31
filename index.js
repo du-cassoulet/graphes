@@ -118,22 +118,24 @@ class Edge {
 
 			ctx.stroke();
 
-			const angle = Math.PI / 4.5;
+			if (oriented) {
+				const angle = Math.PI / 4.5;
 
-			const arrowX1 =
-				startX - nodeRadius - arrowLength * Math.cos(angle - arrowAngle);
-			const arrowY1 = startY - arrowLength * Math.sin(angle - arrowAngle);
+				const arrowX1 =
+					startX - nodeRadius - arrowLength * Math.cos(angle - arrowAngle);
+				const arrowY1 = startY - arrowLength * Math.sin(angle - arrowAngle);
 
-			const arrowX2 =
-				startX - nodeRadius - arrowLength * Math.cos(angle + arrowAngle);
-			const arrowY2 = startY - arrowLength * Math.sin(angle + arrowAngle);
+				const arrowX2 =
+					startX - nodeRadius - arrowLength * Math.cos(angle + arrowAngle);
+				const arrowY2 = startY - arrowLength * Math.sin(angle + arrowAngle);
 
-			ctx.beginPath();
-			ctx.moveTo(startX - nodeRadius, startY);
-			ctx.lineTo(arrowX1, arrowY1);
-			ctx.moveTo(startX - nodeRadius, startY);
-			ctx.lineTo(arrowX2, arrowY2);
-			ctx.stroke();
+				ctx.beginPath();
+				ctx.moveTo(startX - nodeRadius, startY);
+				ctx.lineTo(arrowX1, arrowY1);
+				ctx.moveTo(startX - nodeRadius, startY);
+				ctx.lineTo(arrowX2, arrowY2);
+				ctx.stroke();
+			}
 		} else {
 			const angle = Math.atan2(endY - startY, endX - startX);
 
@@ -213,6 +215,7 @@ class Graph {
 	link(from, to) {
 		const edge = new Edge(from, to);
 
+		if (this.edges.some((e) => e.from === from && e.to === to)) return;
 		this.edges.push(edge);
 		from.addEdge(edge);
 
@@ -363,12 +366,6 @@ undoButton.onclick = (e) => {
 			break;
 		}
 
-		case ACTIONS.Move: {
-			lastAction.node.x = lastAction.fromX;
-			lastAction.node.y = lastAction.fromY;
-			break;
-		}
-
 		case ACTIONS.AddEdge: {
 			graph.edges = graph.edges.filter(
 				(edge) => edge.from !== lastAction.from && edge.to !== lastAction.to
@@ -395,12 +392,6 @@ redoButton.onclick = (e) => {
 
 		case ACTIONS.Delete: {
 			graph.nodes = graph.nodes.filter((n) => n !== lastAction.node);
-			break;
-		}
-
-		case ACTIONS.Move: {
-			lastAction.node.x = lastAction.toX;
-			lastAction.node.y = lastAction.toY;
 			break;
 		}
 
@@ -544,24 +535,28 @@ document.onmouseup = (e) => {
 	switch (action) {
 		case ACTIONS.Move: {
 			if (movingNode) {
-				actions.push({
-					action: ACTIONS.Move,
-					node: movingNode,
-					fromX: mouseX,
-					fromY: mouseY,
-					toX: movingNode.x,
-					toY: movingNode.x,
-				});
-
 				movingNode = null;
 				undoActions.length = 0;
 			} else {
 				const nodes = graph.nodes.filter(
 					(node) =>
-						node.x >= selectionZone.x &&
-						node.x <= selectionZone.x + selectionZone.width &&
-						node.y >= selectionZone.y &&
-						node.y <= selectionZone.y + selectionZone.height
+						node.x >=
+							Math.min(
+								selectionZone.x,
+								selectionZone.x + selectionZone.width
+							) &&
+						node.x <=
+							Math.max(
+								selectionZone.x,
+								selectionZone.x + selectionZone.width
+							) &&
+						node.y >=
+							Math.min(
+								selectionZone.y,
+								selectionZone.y + selectionZone.height
+							) &&
+						node.y <=
+							Math.max(selectionZone.y, selectionZone.y + selectionZone.height)
 				);
 
 				if (e.shiftKey) {
