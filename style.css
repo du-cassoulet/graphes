@@ -1,0 +1,76 @@
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	user-select: none;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-webkit-font-smoothing: antialiased;
+}
+
+body {
+	font-family: "Arial", sans-serif;
+	overflow: hidden;
+}
+
+.gui {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: fit-content;
+	height: fit-content;
+	display: flex;
+	flex-direction: column;
+}
+
+.gui .select,
+.gui .action {
+	background: #525252;
+	border: none;
+	padding: 15px;
+	color: #f3f3f3;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: 100ms ease-in-out;
+}
+
+.gui .select span,
+.gui .switch span,
+.gui .action span {
+	font-size: 18px;
+}
+
+.gui .select:hover,
+.gui .action:hover {
+	background: #5c5c5c;
+}
+
+.gui .select.active {
+	background: #5c5c5c;
+}
+
+.gui .switch {
+	background: #ea4343;
+	border: none;
+	padding: 15px;
+	color: #f3f3f3;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: 100ms ease-in-out;
+}
+
+.gui .switch:hover {
+	background: #ff5f5f;
+}
+
+.gui .switch.active {
+	background: #33d333;
+}
+
+.gui .switch.active:hover {
+	background: #41e041;
+}
